@@ -1,11 +1,7 @@
 from msgpack import packb, unpackb
 from msgpack_stream import pack, unpack
 
-
-import os
 import copy
-
-# os.environ['MSGPACK_PUREPYTHON'] = '1'
 
 
 obj = {
@@ -23,13 +19,7 @@ obj = {
 obj["object"] = copy.deepcopy(obj)
 
 
-obj_extra = {
-    None: None,
-    3: 3,
-    -1: -1,
-    True: True,
-    False: "hey",
-}
+obj_extra = {None: None, 3: 3, -1: -1, True: True, False: "hey", 1.1: 1.1}
 
 for i in range(64):
     li = obj["test"]
@@ -56,9 +46,11 @@ def test_conformance():
     data = packb(obj)
     assert pack(obj) == data
     assert unpackb(data) == obj
-    assert unpack(data) == obj
+    unpacked_obj, _ = unpack(data)
+    assert unpacked_obj == obj
 
 
 def test_extra():
     data = pack(obj_extra)
-    assert unpack(data) == obj_extra
+    unpacked_obj, _ = unpack(data)
+    assert unpacked_obj == obj_extra

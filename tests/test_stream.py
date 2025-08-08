@@ -1,4 +1,4 @@
-from msgpack_stream import msgpack_t
+from msgpack_stream import pack_stream, unpack_stream
 
 import io
 
@@ -24,9 +24,9 @@ obj = {
 
 def test_stream():
     stream = io.BytesIO()
-    msgpack_t.pack(stream, obj)
-    msgpack_t.pack(stream, obj)
+    pack_stream(stream, obj)
+    pack_stream(stream, obj)
     stream.seek(0)
-    assert msgpack_t.unpack(stream) == obj
-    assert msgpack_t.unpack(stream) == obj
+    assert unpack_stream(stream) == obj
+    assert unpack_stream(stream) == obj
     stream.close()

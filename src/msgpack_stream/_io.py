@@ -1,25 +1,19 @@
 import io
 
-
-class container(dict):
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
+from ._msgpack import pack_stream, unpack_stream
 
 
-def pack(typ, obj):
-    stream = io.BytesIO()
-    typ.pack(stream, obj)
-    data = stream.getvalue()
-    stream.close()
+def pack(obj):
+    """Pack object into data."""
+    with io.BytesIO() as stream:
+        pack_stream(stream, obj)
+        data = stream.getvalue()
     return data
 
 
-def unpack(typ, data):
-    stream = io.BytesIO(data)
-    obj = typ.unpack(stream)
-    extra_data = stream.read()
-    if extra_data:
-        raise RuntimeError("too much data", extra_data)
-    stream.close()
-    return obj
+def unpack(data):
+    """Unpack data into object."""
+    with io.BytesIO(data) as stream:
+        obj = unpack_stream(stream)
+        excess_data = stream.read()
+    return obj, excess_data
