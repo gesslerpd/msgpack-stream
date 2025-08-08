@@ -11,7 +11,7 @@ from ._number import (
     f64_b_t,
 )
 
-# dereference for performance
+# deference for performance
 u8_b_pack = u8_b_t.pack
 u16_b_pack = u16_b_t.pack
 u32_b_pack = u32_b_t.pack
@@ -33,17 +33,6 @@ s32_b_unpack = s32_b_t.unpack
 s64_b_unpack = s64_b_t.unpack
 f32_b_unpack = f32_b_t.unpack
 f64_b_unpack = f64_b_t.unpack
-
-u8_s = u8_b_t.struct
-u16_s = u16_b_t.struct
-u32_s = u32_b_t.struct
-u64_s = u64_b_t.struct
-s8_s = s8_b_t.struct
-s16_s = s16_b_t.struct
-s32_s = s32_b_t.struct
-s64_s = s64_b_t.struct
-f32_s = f32_b_t.struct
-f64_s = f64_b_t.struct
 
 
 def pack_stream(stream, obj):
@@ -152,36 +141,22 @@ def pack_stream(stream, obj):
         raise TypeError("type not supported:", obj, type(obj))
 
 
-def unpack_stream(stream, offset=0):
-    (first_byte,) = u8_s.unpack_from(stream, offset)
-    offset += u8_s.size
+def unpack_stream(stream):
+    first_byte = u8_b_unpack(stream)
     if first_byte <= 0x7F:
         obj = first_byte
     elif first_byte <= 0x8F:
         map_length = first_byte & 0b1111
-        unpack_stream.__offset__ = offset
-        obj = {
-            unpack_stream(stream, unpack_stream.__offset__): unpack_stream(
-                stream, unpack_stream.__offset__
-            )
-            for _ in range(map_length)
-        }
-        offset = unpack_stream.__offset__
+        obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(map_length)}
     elif first_byte <= 0x9F:
         array_length = first_byte & 0b1111
-        unpack_stream.__offset__ = offset
-        obj = [
-            unpack_stream(stream, unpack_stream.__offset__) for _ in range(array_length)
-        ]
-        offset = unpack_stream.__offset__
+        obj = [unpack_stream(stream) for _ in range(array_length)]
     elif first_byte <= 0xBF:
         str_length = first_byte & 0b11111
-        _offset = offset + str_length
-        obj = bytes(stream[offset:_offset]).decode("utf-8")
-        offset = _offset
+        obj = stream.read(str_length).decode("utf-8")
     elif 0xE0 <= first_byte and first_byte <= 0xFF:
-        (obj,) = s8_s.unpack_from(stream, offset - s8_s.size)
-        # peek backwards, offset is good where it's at
+        stream.seek(-1, 1)
+        obj = s8_b_unpack(stream)
     elif first_byte == 0xC0:
         obj = None
     elif first_byte == 0xC2:
@@ -189,23 +164,14 @@ def unpack_stream(stream, offset=0):
     elif first_byte == 0xC3:
         obj = True
     elif first_byte == 0xC4:
-        (bin_length,) = u8_s.unpack_from(stream, offset)
-        offset += u8_s.size
-        _offset = offset + bin_length
-        obj = bytes(stream[offset:_offset])
-        offset = _offset
+        bin_length = u8_b_unpack(stream)
+        obj = stream.read(bin_length)
     elif first_byte == 0xC5:
-        (bin_length,) = u16_s.unpack_from(stream, offset)
-        offset += u16_s.size
-        _offset = offset + bin_length
-        obj = bytes(stream[offset:_offset])
-        offset = _offset
+        bin_length = u16_b_unpack(stream)
+        obj = stream.read(bin_length)
     elif first_byte == 0xC6:
-        (bin_length,) = u32_s.unpack_from(stream, offset)
-        offset += u32_s.size
-        _offset = offset + bin_length
-        obj = bytes(stream[offset:_offset])
-        offset = _offset
+        bin_length = u32_b_unpack(stream)
+        obj = stream.read(bin_length)
     elif first_byte == 0xC7:
         raise NotImplementedError
     elif first_byte == 0xC8:
@@ -213,35 +179,25 @@ def unpack_stream(stream, offset=0):
     elif first_byte == 0xC9:
         raise NotImplementedError
     elif first_byte == 0xCA:
-        (obj,) = f32_s.unpack_from(stream, offset)
-        offset += f32_s.size
+        obj = f32_b_unpack(stream)
     elif first_byte == 0xCB:
-        (obj,) = f64_s.unpack_from(stream, offset)
-        offset += f64_s.size
+        obj = f64_b_unpack(stream)
     elif first_byte == 0xCC:
-        (obj,) = u8_s.unpack_from(stream, offset)
-        offset += u8_s.size
+        obj = u8_b_unpack(stream)
     elif first_byte == 0xCD:
-        (obj,) = u16_s.unpack_from(stream, offset)
-        offset += u16_s.size
+        obj = u16_b_unpack(stream)
     elif first_byte == 0xCE:
-        (obj,) = u32_s.unpack_from(stream, offset)
-        offset += u32_s.size
+        obj = u32_b_unpack(stream)
     elif first_byte == 0xCF:
-        (obj,) = u64_s.unpack_from(stream, offset)
-        offset += u64_s.size
+        obj = u64_b_unpack(stream)
     elif first_byte == 0xD0:
-        (obj,) = s8_s.unpack_from(stream, offset)
-        offset += s8_s.size
+        obj = s8_b_unpack(stream)
     elif first_byte == 0xD1:
-        (obj,) = s16_s.unpack_from(stream, offset)
-        offset += s16_s.size
+        obj = s16_b_unpack(stream)
     elif first_byte == 0xD2:
-        (obj,) = s32_s.unpack_from(stream, offset)
-        offset += s32_s.size
+        obj = s32_b_unpack(stream)
     elif first_byte == 0xD3:
-        (obj,) = s64_s.unpack_from(stream, offset)
-        offset += s64_s.size
+        obj = s64_b_unpack(stream)
     elif first_byte == 0xD4:
         raise NotImplementedError
     elif first_byte == 0xD5:
@@ -253,63 +209,27 @@ def unpack_stream(stream, offset=0):
     elif first_byte == 0xD8:
         raise NotImplementedError
     elif first_byte == 0xD9:
-        (str_length,) = u8_s.unpack_from(stream, offset)
-        offset += u8_s.size
-        _offset = offset + str_length
-        obj = bytes(stream[offset:_offset]).decode("utf-8")
-        offset = _offset
+        str_length = u8_b_unpack(stream)
+        obj = stream.read(str_length).decode("utf-8")
     elif first_byte == 0xDA:
-        (str_length,) = u16_s.unpack_from(stream, offset)
-        offset += u16_s.size
-        _offset = offset + str_length
-        obj = bytes(stream[offset:_offset]).decode("utf-8")
-        offset = _offset
+        str_length = u16_b_unpack(stream)
+        obj = stream.read(str_length).decode("utf-8")
     elif first_byte == 0xDB:
-        (str_length,) = u32_s.unpack_from(stream, offset)
-        offset += u32_s.size
-        _offset = offset + str_length
-        obj = bytes(stream[offset:_offset]).decode("utf-8")
-        offset = _offset
+        str_length = u32_b_unpack(stream)
+        obj = stream.read(str_length).decode("utf-8")
     elif first_byte == 0xDC:
-        (array_length,) = u16_s.unpack_from(stream, offset)
-        offset += u16_s.size
-        unpack_stream.__offset__ = offset
-        obj = [
-            unpack_stream(stream, unpack_stream.__offset__) for _ in range(array_length)
-        ]
-        offset = unpack_stream.__offset__
+        array_length = u16_b_unpack(stream)
+        obj = [unpack_stream(stream) for _ in range(array_length)]
     elif first_byte == 0xDD:
-        (array_length,) = u32_s.unpack_from(stream, offset)
-        offset += u32_s.size
-        unpack_stream.__offset__ = offset
-        obj = [
-            unpack_stream(stream, unpack_stream.__offset__) for _ in range(array_length)
-        ]
-        offset = unpack_stream.__offset__
+        array_length = u32_b_unpack(stream)
+        obj = [unpack_stream(stream) for _ in range(array_length)]
     elif first_byte == 0xDE:
-        (map_length,) = u16_s.unpack_from(stream, offset)
-        offset += u16_s.size
-        unpack_stream.__offset__ = offset
-        obj = {
-            unpack_stream(stream, unpack_stream.__offset__): unpack_stream(
-                stream, offset=unpack_stream.__offset__
-            )
-            for _ in range(map_length)
-        }
-        offset = unpack_stream.__offset__
+        map_length = u16_b_unpack(stream)
+        obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(map_length)}
     elif first_byte == 0xDF:
-        (map_length,) = u32_s.unpack_from(stream, offset)
-        offset += u32_s.size
-        unpack_stream.__offset__ = offset
-        obj = {
-            unpack_stream(stream, unpack_stream.__offset__): unpack_stream(
-                stream, offset=unpack_stream.__offset__
-            )
-            for _ in range(map_length)
-        }
-        offset = unpack_stream.__offset__
+        map_length = u32_b_unpack(stream)
+        obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(map_length)}
     else:
         raise ValueError("invalid first byte", first_byte, hex(first_byte))
 
-    unpack_stream.__offset__ = offset
     return obj

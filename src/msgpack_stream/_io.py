@@ -13,7 +13,7 @@ def pack(obj):
 
 def unpack(data):
     """Unpack data into object."""
-    with io.BytesIO(data) as stream, stream.getbuffer() as mv:
-        obj = unpack_stream(mv)
-        excess_data = bytes(mv[unpack_stream.__offset__:])
+    with io.BytesIO(data) as stream:
+        obj = unpack_stream(stream)
+        excess_data = stream.read()
     return obj, excess_data

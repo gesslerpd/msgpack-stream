@@ -23,9 +23,10 @@ obj = {
 
 
 def test_stream():
-    with io.BytesIO() as stream:
-        pack_stream(stream, obj)
-        pack_stream(stream, obj)
-        with stream.getbuffer() as mv:
-            assert unpack_stream(mv) == obj
-            assert unpack_stream(mv) == obj
+    stream = io.BytesIO()
+    pack_stream(stream, obj)
+    pack_stream(stream, obj)
+    stream.seek(0)
+    assert unpack_stream(stream) == obj
+    assert unpack_stream(stream) == obj
+    stream.close()
