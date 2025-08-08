@@ -4,21 +4,21 @@ import io
 
 
 obj = {
-    b'bytearray': b'\x00\x01\x02\x03\x04',
-    'string': '🐍',
-    'list': [0, 1.0, None, '', b'', True, {}],
-    'int': -1,
-    'uint': 1,
-    'float': 3.1416,
-    'none': None,
-    'boolean': True,
-    'object': {
+    b"bytearray": b"\x00\x01\x02\x03\x04",
+    "string": "🐍",
+    "list": [0, 1.0, None, "", b"", True, {}],
+    "int": -1,
+    "uint": 1,
+    "float": 3.1416,
+    "none": None,
+    "boolean": True,
+    "object": {
         None: None,
         3: 3,
         -1: -1,
         True: True,
-        False: 'hey',
-    }
+        False: "hey",
+    },
 }
 
 

@@ -1,4 +1,3 @@
-
 from ._number import (
     u8_b_t,
     u16_b_t,
@@ -20,18 +19,18 @@ class MsgPack:
             if map_length <= 0x0F:
                 u8_b_t.pack(stream, 0b10000000 + map_length)
             elif map_length <= 0xFF_FF:
-                stream.write(b'\xde')
+                stream.write(b"\xde")
                 u16_b_t.pack(stream, map_length)
             elif map_length <= 0xFF_FF_FF_FF:
-                stream.write(b'\xdf')
+                stream.write(b"\xdf")
                 u32_b_t.pack(stream, map_length)
             else:
-                raise ValueError('map too large', obj)
+                raise ValueError("map too large", obj)
             for key, value in obj.items():
                 self.pack(stream, key)
                 self.pack(stream, value)
         elif isinstance(obj, bool):
-            stream.write(b'\xc3' if obj else b'\xc2')
+            stream.write(b"\xc3" if obj else b"\xc2")
         elif isinstance(obj, int):
             int_negative = obj < 0
             int_abs = abs(obj)
@@ -39,85 +38,85 @@ class MsgPack:
                 if int_abs <= 0b100000:
                     s8_b_t.pack(stream, obj)
                 elif int_abs <= 0x80:
-                    stream.write(b'\xd0')
+                    stream.write(b"\xd0")
                     s8_b_t.pack(stream, obj)
                 elif int_abs <= 0x80_00:
-                    stream.write(b'\xd1')
+                    stream.write(b"\xd1")
                     s16_b_t.pack(stream, obj)
                 elif int_abs <= 0x80_00_00_00:
-                    stream.write(b'\xd2')
+                    stream.write(b"\xd2")
                     s32_b_t.pack(stream, obj)
                 elif int_abs <= 0x80_00_00_00_00_00_00_00:
-                    stream.write(b'\xd3')
+                    stream.write(b"\xd3")
                     s64_b_t.pack(stream, obj)
                 else:
-                    raise ValueError('int too large')
+                    raise ValueError("int too large")
             else:
                 if int_abs <= 0b1111111:
                     u8_b_t.pack(stream, obj)
                 elif int_abs <= 0xFF:
-                    stream.write(b'\xcc')
+                    stream.write(b"\xcc")
                     u8_b_t.pack(stream, obj)
                 elif int_abs <= 0xFF_FF:
-                    stream.write(b'\xcd')
+                    stream.write(b"\xcd")
                     u16_b_t.pack(stream, obj)
                 elif int_abs <= 0xFF_FF_FF_FF:
-                    stream.write(b'\xce')
+                    stream.write(b"\xce")
                     u32_b_t.pack(stream, obj)
                 elif int_abs <= 0xFF_FF_FF_FF_FF_FF_FF_FF:
-                    stream.write(b'\xcf')
+                    stream.write(b"\xcf")
                     u64_b_t.pack(stream, obj)
                 else:
-                    raise ValueError('uint too large')
+                    raise ValueError("uint too large")
         elif isinstance(obj, float):
-            stream.write(b'\xcb')
+            stream.write(b"\xcb")
             f64_b_t.pack(stream, obj)
         elif isinstance(obj, (bytes, bytearray)):
             bin_length = len(obj)
             if bin_length <= 0xFF:
-                stream.write(b'\xc4')
+                stream.write(b"\xc4")
                 u8_b_t.pack(stream, bin_length)
             elif bin_length <= 0xFF_FF:
-                stream.write(b'\xc5')
+                stream.write(b"\xc5")
                 u16_b_t.pack(stream, bin_length)
             elif bin_length <= 0xFF_FF_FF_FF:
-                stream.write(b'\xc6')
+                stream.write(b"\xc6")
                 u32_b_t.pack(stream, bin_length)
             else:
-                raise ValueError('bin too large', obj)
+                raise ValueError("bin too large", obj)
             stream.write(obj)
         elif isinstance(obj, str):
-            str_bytes = obj.encode('utf-8')
+            str_bytes = obj.encode("utf-8")
             str_length = len(str_bytes)
             if str_length <= 0b11111:
                 u8_b_t.pack(stream, 0b10100000 + str_length)
             elif str_length <= 0xFF:
-                stream.write(b'\xd9')
+                stream.write(b"\xd9")
             elif str_length <= 0xFF_FF:
-                stream.write(b'\xda')
+                stream.write(b"\xda")
             elif str_length <= 0xFF_FF_FF_FF:
-                stream.write(b'\xdb')
+                stream.write(b"\xdb")
             else:
-                raise ValueError('str too large', obj)
+                raise ValueError("str too large", obj)
             stream.write(str_bytes)
         elif isinstance(obj, list):
             array_length = len(obj)
             if array_length <= 0x0F:
                 u8_b_t.pack(stream, 0b10010000 + array_length)
             elif array_length <= 0xFF_FF:
-                stream.write(b'\xdc')
+                stream.write(b"\xdc")
                 u16_b_t.pack(stream, array_length)
             elif array_length <= 0xFF_FF_FF_FF:
-                stream.write(b'\xdd')
+                stream.write(b"\xdd")
                 u32_b_t.pack(stream, array_length)
             else:
-                raise ValueError('array too large', obj)
+                raise ValueError("array too large", obj)
             for value in obj:
                 self.pack(stream, value)
         elif obj is None:
-            stream.write(b'\xc0')
+            stream.write(b"\xc0")
         else:
-            raise TypeError('type not supported:', obj, type(obj))
+            raise TypeError("type not supported:", obj, type(obj))
 
     def unpack(self, stream):
         first_byte = u8_b_t.unpack(stream)
@@ -125,15 +124,13 @@ class MsgPack:
             obj = first_byte
         elif first_byte <= 0x8F:
             map_length = first_byte & 0b1111
-            obj = {
-                self.unpack(stream): self.unpack(stream) for _ in range(map_length)
-            }
+            obj = {self.unpack(stream): self.unpack(stream) for _ in range(map_length)}
         elif first_byte <= 0x9F:
             array_length = first_byte & 0b1111
             obj = [self.unpack(stream) for _ in range(array_length)]
         elif first_byte <= 0xBF:
             str_length = first_byte & 0b11111
-            obj = stream.read(str_length).decode('utf-8')
+            obj = stream.read(str_length).decode("utf-8")
         elif 0xE0 <= first_byte and first_byte <= 0xFF:
             stream.seek(-1, 1)
             obj = s8_b_t.unpack(stream)
@@ -190,13 +187,13 @@ class MsgPack:
             raise NotImplementedError
         elif first_byte == 0xD9:
             str_length = u8_b_t.unpack(stream)
-            obj = stream.read(str_length).decode('utf-8')
+            obj = stream.read(str_length).decode("utf-8")
         elif first_byte == 0xDA:
             str_length = u16_b_t.unpack(stream)
-            obj = stream.read(str_length).decode('utf-8')
+            obj = stream.read(str_length).decode("utf-8")
         elif first_byte == 0xDB:
             str_length = u32_b_t.unpack(stream)
-            obj = stream.read(str_length).decode('utf-8')
+            obj = stream.read(str_length).decode("utf-8")
         elif first_byte == 0xDC:
             array_length = u16_b_t.unpack(stream)
             obj = [self.unpack(stream) for _ in range(array_length)]
@@ -205,16 +202,12 @@ class MsgPack:
             obj = [self.unpack(stream) for _ in range(array_length)]
         elif first_byte == 0xDE:
             map_length = u16_b_t.unpack(stream)
-            obj = {
-                self.unpack(stream): self.unpack(stream) for _ in range(map_length)
-            }
+            obj = {self.unpack(stream): self.unpack(stream) for _ in range(map_length)}
         elif first_byte == 0xDF:
             map_length = u32_b_t.unpack(stream)
-            obj = {
-                self.unpack(stream): self.unpack(stream) for _ in range(map_length)
-            }
+            obj = {self.unpack(stream): self.unpack(stream) for _ in range(map_length)}
         else:
-            raise ValueError('invalid first byte', first_byte, hex(first_byte))
+            raise ValueError("invalid first byte", first_byte, hex(first_byte))
 
         return obj
 

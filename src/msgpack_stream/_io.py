@@ -2,7 +2,6 @@ import io
 
 
 class container(dict):
-
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
@@ -21,6 +20,6 @@ def unpack(typ, data):
     obj = typ.unpack(stream)
     extra_data = stream.read()
     if extra_data:
-        raise RuntimeError('too much data', extra_data)
+        raise RuntimeError("too much data", extra_data)
     stream.close()
     return obj
