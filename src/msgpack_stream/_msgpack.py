@@ -1,3 +1,4 @@
+import os
 from ._number import (
     u8_b_t,
     u16_b_t,
@@ -20,8 +21,10 @@ s8_b_pack = s8_b_t.pack
 s16_b_pack = s16_b_t.pack
 s32_b_pack = s32_b_t.pack
 s64_b_pack = s64_b_t.pack
-f32_b_pack = f32_b_t.pack
-f64_b_pack = f64_b_t.pack
+f_b_pack = f64_b_t.pack
+
+if os.environ.get("MSGPACK_PACK_FLOAT32"):
+    f_b_pack = f32_b_t.pack
 
 u8_b_unpack = u8_b_t.unpack
 u16_b_unpack = u16_b_t.unpack
@@ -77,7 +80,7 @@ def pack_stream(stream, obj):
             raise ValueError("uint too large")
     elif _type is float:
         stream.write(b"\xcb")
-        f64_b_pack(stream, obj)
+        f_b_pack(stream, obj)
     elif _type is dict:
         ml = len(obj)
         if ml <= 0x0F:
@@ -140,7 +143,7 @@ def pack_stream(stream, obj):
             raise ValueError("bin too large", obj)
         stream.write(obj)
     else:
-        raise TypeError("type not supported:", obj, type(obj))
+        raise TypeError("type not supported:", obj, _type)
 
 
 def unpack_stream(stream):
