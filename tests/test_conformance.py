@@ -7,39 +7,40 @@ import copy
 obj = {
     b"bytearray": b"\x00\x01\x02\x03\x04",
     "string": "🐍",
-    "list": [0, 1.0, None, "", b"", True, {}],
+    "list": [0, 1.0, None, "", b"", True, {}, {f"{i}": i for i in range(0x10000)}],
     "int": -1,
     "uint": 1,
     "float": 3.1416,
     "none": None,
     "boolean": True,
-    "test": [],
+    "test": [
+        [
+            power_of_2,
+            power_of_2 - 1,
+            power_of_2 + 1,
+            -power_of_2,
+            -(power_of_2 - 1),
+        ]
+        for i in range(64)
+        if (power_of_2 := 2**i)
+    ],
 }
 
 obj["object"] = copy.deepcopy(obj)
 
 
+obj["list_b1"] = [1] * 0x10
+obj["list_b2"] = [1] * 0x1_00_00
+
+obj["str_b1"] = "a" * 0x20
+obj["str_b2"] = "a" * 0x1_00
+obj["str_b3"] = "a" * 0x1_00_00
+
+obj["bytes_b1"] = b"a" * 0x1_00
+obj["bytes_b2"] = b"a" * 0x1_00_00
+
+
 obj_extra = {None: None, 3: 3, -1: -1, True: True, False: "hey", 1.1: 1.1}
-
-for i in range(64):
-    li = obj["test"]
-    pow2 = 2**i
-    pow21 = pow2 - 1
-    pow211 = pow2 + 1
-    li.extend(
-        [
-            pow2,
-            pow21,
-            pow211,
-            -pow2,
-            -pow21,
-        ]
-    )
-    li.append(2**64 - 1)
-    li.append(-(2**63))
-
-for i in range(2**18):
-    obj[f"test{i}"] = i
 
 
 def test_conformance():

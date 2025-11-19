@@ -114,11 +114,11 @@ def pack_stream(stream, obj):
         if sl <= 0x1F:
             stream.write(_B[0xA0 | sl])
         elif sl <= 0xFF:
-            stream.write(b"\xd9")
+            stream.write(b"\xd9" + _B[sl])
         elif sl <= 0xFF_FF:
-            stream.write(b"\xda")
+            stream.write(b"\xda" + u16_b_pack(sl))
         elif sl <= 0xFF_FF_FF_FF:
-            stream.write(b"\xdb")
+            stream.write(b"\xdb" + u32_b_pack(sl))
         else:
             raise ValueError("str too large", obj)
         stream.write(s)
