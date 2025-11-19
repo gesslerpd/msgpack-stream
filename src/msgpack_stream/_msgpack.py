@@ -13,18 +13,29 @@ from ._number import (
 )
 
 # deference for performance
-u8_b_pack = u8_b_t.pack
-u16_b_pack = u16_b_t.pack
-u32_b_pack = u32_b_t.pack
-u64_b_pack = u64_b_t.pack
-s8_b_pack = s8_b_t.pack
-s16_b_pack = s16_b_t.pack
-s32_b_pack = s32_b_t.pack
-s64_b_pack = s64_b_t.pack
-f_b_pack = f64_b_t.pack
+
+# u8_b_st = u8_b_t.struct
+u16_b_st = u16_b_t.struct
+u32_b_st = u32_b_t.struct
+u64_b_st = u64_b_t.struct
+s8_b_st = s8_b_t.struct
+s16_b_st = s16_b_t.struct
+s32_b_st = s32_b_t.struct
+s64_b_st = s64_b_t.struct
+f_b_st = f64_b_t.struct
 
 if os.environ.get("MSGPACK_PACK_FLOAT32"):
-    f_b_pack = f32_b_t.pack
+    f_b_st = f32_b_t.struct
+
+# u8_b_pack = u8_b_st.pack
+u16_b_pack = u16_b_st.pack
+u32_b_pack = u32_b_st.pack
+u64_b_pack = u64_b_st.pack
+s8_b_pack = s8_b_st.pack
+s16_b_pack = s16_b_st.pack
+s32_b_pack = s32_b_st.pack
+s64_b_pack = s64_b_st.pack
+f_b_pack = f_b_st.pack
 
 u8_b_unpack = u8_b_t.unpack
 u16_b_unpack = u16_b_t.unpack
@@ -51,46 +62,35 @@ def pack_stream(stream, obj):
         elif i < 0:  # wider negative
             u_i = -i
             if u_i <= 0x80:
-                stream.write(b"\xd0")
-                s8_b_pack(stream, i)
+                stream.write(b"\xd0" + s8_b_pack(i))
             elif u_i <= 0x80_00:
-                stream.write(b"\xd1")
-                s16_b_pack(stream, i)
+                stream.write(b"\xd1" + s16_b_pack(i))
             elif u_i <= 0x80_00_00_00:
-                stream.write(b"\xd2")
-                s32_b_pack(stream, i)
+                stream.write(b"\xd2" + s32_b_pack(i))
             elif u_i <= 0x80_00_00_00_00_00_00_00:
-                stream.write(b"\xd3")
-                s64_b_pack(stream, i)
+                stream.write(b"\xd3" + s64_b_pack(i))
             else:
                 raise ValueError("int too large")
         elif i <= 0xFF:
-            stream.write(b"\xcc")
-            u8_b_pack(stream, i)
+            stream.write(b"\xcc" + _B[i])
         elif i <= 0xFF_FF:
-            stream.write(b"\xcd")
-            u16_b_pack(stream, i)
+            stream.write(b"\xcd" + u16_b_pack(i))
         elif i <= 0xFF_FF_FF_FF:
-            stream.write(b"\xce")
-            u32_b_pack(stream, i)
+            stream.write(b"\xce" + u32_b_pack(i))
         elif i <= 0xFF_FF_FF_FF_FF_FF_FF_FF:
-            stream.write(b"\xcf")
-            u64_b_pack(stream, i)
+            stream.write(b"\xcf" + u64_b_pack(i))
         else:
             raise ValueError("uint too large")
     elif _type is float:
-        stream.write(b"\xcb")
-        f_b_pack(stream, obj)
+        stream.write(b"\xcb" + f_b_pack(obj))
     elif _type is dict:
         ml = len(obj)
         if ml <= 0x0F:
             stream.write(_B[0x80 | ml])
         elif ml <= 0xFF_FF:
-            stream.write(b"\xde")
-            u16_b_pack(stream, ml)
+            stream.write(b"\xde" + u16_b_pack(ml))
         elif ml <= 0xFF_FF_FF_FF:
-            stream.write(b"\xdf")
-            u32_b_pack(stream, ml)
+            stream.write(b"\xdf" + u32_b_pack(ml))
         else:
             raise ValueError("map too large", obj)
         for k, v in obj.items():
@@ -101,11 +101,9 @@ def pack_stream(stream, obj):
         if al <= 0x0F:
             stream.write(_B[0x90 | al])
         elif al <= 0xFF_FF:
-            stream.write(b"\xdc")
-            u16_b_pack(stream, al)
+            stream.write(b"\xdc" + u16_b_pack(al))
         elif al <= 0xFF_FF_FF_FF:
-            stream.write(b"\xdd")
-            u32_b_pack(stream, al)
+            stream.write(b"\xdd" + u32_b_pack(al))
         else:
             raise ValueError("array too large", obj)
         for v in obj:
@@ -131,14 +129,11 @@ def pack_stream(stream, obj):
     elif _type is bytes:
         bl = len(obj)
         if bl <= 0xFF:
-            stream.write(b"\xc4")
-            u8_b_pack(stream, bl)
+            stream.write(b"\xc4" + _B[bl])
         elif bl <= 0xFF_FF:
-            stream.write(b"\xc5")
-            u16_b_pack(stream, bl)
+            stream.write(b"\xc5" + u16_b_pack(bl))
         elif bl <= 0xFF_FF_FF_FF:
-            stream.write(b"\xc6")
-            u32_b_pack(stream, bl)
+            stream.write(b"\xc6" + u32_b_pack(bl))
         else:
             raise ValueError("bin too large", obj)
         stream.write(obj)
