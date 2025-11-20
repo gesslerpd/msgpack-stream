@@ -1,5 +1,4 @@
 import io
-import pytest
 from msgpack_stream import pack_stream, unpack_stream, ExtType
 
 
