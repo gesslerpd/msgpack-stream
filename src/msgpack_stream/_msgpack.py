@@ -11,6 +11,7 @@ from ._number import (
     f32_b_t,
     f64_b_t,
 )
+from ._ext import ExtType
 
 # deference for performance
 
@@ -49,6 +50,7 @@ f32_b_unpack = f32_b_t.unpack
 f64_b_unpack = f64_b_t.unpack
 
 _B = tuple([bytes([i]) for i in range(256)])
+_PO2 = {1: b"\xd4", 2: b"\xd5", 4: b"\xd6", 8: b"\xd7", 16: b"\xd8"}
 
 
 def pack_stream(stream, obj):
@@ -137,6 +139,21 @@ def pack_stream(stream, obj):
         else:
             raise ValueError("bin too large", obj)
         stream.write(obj)
+    elif _type is ExtType:
+        data = obj.data
+        p_code = s8_b_pack(obj.code)
+        extl = len(data)
+        if extl <= 16 and extl in _PO2:  # fixext (0xD4 - 0xD8)
+            stream.write(_PO2[extl] + p_code)
+        elif extl <= 0xFF:  # ext8
+            stream.write(b"\xc7" + _B[extl] + p_code)
+        elif extl <= 0xFF_FF:  # ext16
+            stream.write(b"\xc8" + u16_b_pack(extl) + p_code)
+        elif extl <= 0xFF_FF_FF_FF:  # ext32
+            stream.write(b"\xc9" + u32_b_pack(extl) + p_code)
+        else:
+            raise ValueError("ext too large", obj)
+        stream.write(data)
     else:
         raise TypeError("type not supported:", obj, _type)
 
@@ -172,8 +189,14 @@ def unpack_stream(stream):
     elif first_byte == 0xC6:
         bl = u32_b_unpack(stream)
         obj = stream.read(bl)
-    elif 0xC7 <= first_byte <= 0xC9:
-        raise NotImplementedError
+    elif first_byte <= 0xC9:  # ext (0xC7 - 0xC9)
+        if first_byte == 0xC7:  # ext8
+            extl = u8_b_unpack(stream)
+        elif first_byte == 0xC8:  # ext16
+            extl = u16_b_unpack(stream)
+        else:  # ext32
+            extl = u32_b_unpack(stream)
+        obj = ExtType(s8_b_unpack(stream), stream.read(extl))
     elif first_byte == 0xCA:
         obj = f32_b_unpack(stream)
     elif first_byte == 0xCB:
@@ -194,8 +217,8 @@ def unpack_stream(stream):
         obj = s32_b_unpack(stream)
     elif first_byte == 0xD3:
         obj = s64_b_unpack(stream)
-    elif 0xD4 <= first_byte <= 0xD8:
-        raise NotImplementedError
+    elif first_byte <= 0xD8:  # fixext (0xD4 - 0xD8)
+        obj = ExtType(s8_b_unpack(stream), stream.read(1 << (first_byte - 0xD4)))
     elif first_byte == 0xD9:
         sl = u8_b_unpack(stream)
         obj = stream.read(sl).decode("utf-8")
