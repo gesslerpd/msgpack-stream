@@ -55,7 +55,7 @@ _PO2 = {1: b"\xd4", 2: b"\xd5", 4: b"\xd6", 8: b"\xd7", 16: b"\xd8"}
 
 def pack_stream(stream, obj):
     _type = type(obj)
-    if _type is int:
+    if _type is int:  # int
         i = obj
         if 0 <= i <= 0x7F:  # positive fixint
             stream.write(_B[i])
@@ -63,83 +63,83 @@ def pack_stream(stream, obj):
             stream.write(_B[i & 0xFF])
         elif i < 0:  # wider negative
             u_i = -i
-            if u_i <= 0x80:
+            if u_i <= 0x80:  # int8
                 stream.write(b"\xd0" + s8_b_pack(i))
-            elif u_i <= 0x80_00:
+            elif u_i <= 0x80_00:  # int16
                 stream.write(b"\xd1" + s16_b_pack(i))
-            elif u_i <= 0x80_00_00_00:
+            elif u_i <= 0x80_00_00_00:  # int32
                 stream.write(b"\xd2" + s32_b_pack(i))
-            elif u_i <= 0x80_00_00_00_00_00_00_00:
+            elif u_i <= 0x80_00_00_00_00_00_00_00:  # int64
                 stream.write(b"\xd3" + s64_b_pack(i))
             else:
                 raise ValueError("int too large")
-        elif i <= 0xFF:
+        elif i <= 0xFF:  # uint8
             stream.write(b"\xcc" + _B[i])
-        elif i <= 0xFF_FF:
+        elif i <= 0xFF_FF:  # uint16
             stream.write(b"\xcd" + u16_b_pack(i))
-        elif i <= 0xFF_FF_FF_FF:
+        elif i <= 0xFF_FF_FF_FF:  # uint32
             stream.write(b"\xce" + u32_b_pack(i))
-        elif i <= 0xFF_FF_FF_FF_FF_FF_FF_FF:
+        elif i <= 0xFF_FF_FF_FF_FF_FF_FF_FF:  # uint64
             stream.write(b"\xcf" + u64_b_pack(i))
         else:
             raise ValueError("uint too large")
-    elif _type is float:
+    elif _type is float:  # float32 / float64 (depends on MSGPACK_PACK_FLOAT32)
         stream.write(b"\xcb" + f_b_pack(obj))
-    elif _type is dict:
+    elif _type is dict:  # map
         ml = len(obj)
-        if ml <= 0x0F:
+        if ml <= 0x0F:  # fixmap
             stream.write(_B[0x80 | ml])
-        elif ml <= 0xFF_FF:
+        elif ml <= 0xFF_FF:  # map16
             stream.write(b"\xde" + u16_b_pack(ml))
-        elif ml <= 0xFF_FF_FF_FF:
+        elif ml <= 0xFF_FF_FF_FF:  # map32
             stream.write(b"\xdf" + u32_b_pack(ml))
         else:
             raise ValueError("map too large", obj)
         for k, v in obj.items():
             pack_stream(stream, k)
             pack_stream(stream, v)
-    elif _type is list:
+    elif _type is list:  # array
         al = len(obj)
-        if al <= 0x0F:
+        if al <= 0x0F:  # fixarray
             stream.write(_B[0x90 | al])
-        elif al <= 0xFF_FF:
+        elif al <= 0xFF_FF:  # array16
             stream.write(b"\xdc" + u16_b_pack(al))
-        elif al <= 0xFF_FF_FF_FF:
+        elif al <= 0xFF_FF_FF_FF:  # array32
             stream.write(b"\xdd" + u32_b_pack(al))
         else:
             raise ValueError("array too large", obj)
         for v in obj:
             pack_stream(stream, v)
-    elif _type is str:
+    elif _type is str:  # str
         s = obj.encode("utf-8")
         sl = len(s)
-        if sl <= 0x1F:
+        if sl <= 0x1F:  # fixstr
             stream.write(_B[0xA0 | sl])
-        elif sl <= 0xFF:
+        elif sl <= 0xFF:  # str8
             stream.write(b"\xd9" + _B[sl])
-        elif sl <= 0xFF_FF:
+        elif sl <= 0xFF_FF:  # str16
             stream.write(b"\xda" + u16_b_pack(sl))
-        elif sl <= 0xFF_FF_FF_FF:
+        elif sl <= 0xFF_FF_FF_FF:  # str32
             stream.write(b"\xdb" + u32_b_pack(sl))
         else:
             raise ValueError("str too large", obj)
         stream.write(s)
-    elif obj is None:
+    elif obj is None:  # nil
         stream.write(b"\xc0")
-    elif _type is bool:
+    elif _type is bool:  # true / false
         stream.write(b"\xc3" if obj else b"\xc2")
-    elif _type is bytes:
+    elif _type is bytes:  # bin
         bl = len(obj)
-        if bl <= 0xFF:
+        if bl <= 0xFF:  # bin8
             stream.write(b"\xc4" + _B[bl])
-        elif bl <= 0xFF_FF:
+        elif bl <= 0xFF_FF:  # bin16
             stream.write(b"\xc5" + u16_b_pack(bl))
-        elif bl <= 0xFF_FF_FF_FF:
+        elif bl <= 0xFF_FF_FF_FF:  # bin32
             stream.write(b"\xc6" + u32_b_pack(bl))
         else:
             raise ValueError("bin too large", obj)
         stream.write(obj)
-    elif _type is ExtType:
+    elif _type is ExtType:  # ext
         data = obj.data
         p_code = s8_b_pack(obj.code)
         extl = len(data)
@@ -174,71 +174,73 @@ def unpack_stream(stream):
     elif first_byte <= 0xBF:  # fixstr
         sl = first_byte & 0x1F
         obj = stream.read(sl).decode("utf-8")
-    elif first_byte == 0xC0:
+    elif first_byte == 0xC0:  # nil
         obj = None
-    elif first_byte == 0xC2:
+    elif first_byte == 0xC1:  # (never used)
+        raise ValueError("invalid first byte", first_byte, hex(first_byte))
+    elif first_byte == 0xC2:  # false
         obj = False
-    elif first_byte == 0xC3:
+    elif first_byte == 0xC3:  # true
         obj = True
-    elif first_byte == 0xC4:
+    elif first_byte == 0xC4:  # bin8
         bl = u8_b_unpack(stream)
         obj = stream.read(bl)
-    elif first_byte == 0xC5:
+    elif first_byte == 0xC5:  # bin16
         bl = u16_b_unpack(stream)
         obj = stream.read(bl)
-    elif first_byte == 0xC6:
+    elif first_byte == 0xC6:  # bin32
         bl = u32_b_unpack(stream)
         obj = stream.read(bl)
     elif first_byte <= 0xC9:  # ext (0xC7 - 0xC9)
-        if first_byte == 0xC7:  # ext8
-            extl = u8_b_unpack(stream)
-        elif first_byte == 0xC8:  # ext16
-            extl = u16_b_unpack(stream)
-        else:  # ext32
-            extl = u32_b_unpack(stream)
+        if first_byte == 0xC7:
+            extl = u8_b_unpack(stream)  # ext8
+        elif first_byte == 0xC8:
+            extl = u16_b_unpack(stream)  # ext16
+        else:
+            extl = u32_b_unpack(stream)  # ext32
         obj = ExtType(s8_b_unpack(stream), stream.read(extl))
-    elif first_byte == 0xCA:
+    elif first_byte == 0xCA:  # float32
         obj = f32_b_unpack(stream)
-    elif first_byte == 0xCB:
+    elif first_byte == 0xCB:  # float64
         obj = f64_b_unpack(stream)
-    elif first_byte == 0xCC:
+    elif first_byte == 0xCC:  # uint8
         obj = u8_b_unpack(stream)
-    elif first_byte == 0xCD:
+    elif first_byte == 0xCD:  # uint16
         obj = u16_b_unpack(stream)
-    elif first_byte == 0xCE:
+    elif first_byte == 0xCE:  # uint32
         obj = u32_b_unpack(stream)
-    elif first_byte == 0xCF:
+    elif first_byte == 0xCF:  # uint64
         obj = u64_b_unpack(stream)
-    elif first_byte == 0xD0:
+    elif first_byte == 0xD0:  # int8
         obj = s8_b_unpack(stream)
-    elif first_byte == 0xD1:
+    elif first_byte == 0xD1:  # int16
         obj = s16_b_unpack(stream)
-    elif first_byte == 0xD2:
+    elif first_byte == 0xD2:  # int32
         obj = s32_b_unpack(stream)
-    elif first_byte == 0xD3:
+    elif first_byte == 0xD3:  # int64
         obj = s64_b_unpack(stream)
     elif first_byte <= 0xD8:  # fixext (0xD4 - 0xD8)
         obj = ExtType(s8_b_unpack(stream), stream.read(1 << (first_byte - 0xD4)))
-    elif first_byte == 0xD9:
+    elif first_byte == 0xD9:  # str8
         sl = u8_b_unpack(stream)
         obj = stream.read(sl).decode("utf-8")
-    elif first_byte == 0xDA:
+    elif first_byte == 0xDA:  # str16
         sl = u16_b_unpack(stream)
         obj = stream.read(sl).decode("utf-8")
-    elif first_byte == 0xDB:
+    elif first_byte == 0xDB:  # str32
         sl = u32_b_unpack(stream)
         obj = stream.read(sl).decode("utf-8")
-    elif first_byte == 0xDC:
-        al = u16_b_unpack(stream)
+    elif first_byte <= 0xDD:  # array
+        if first_byte == 0xDC:
+            al = u16_b_unpack(stream)  # array16
+        else:
+            al = u32_b_unpack(stream)  # array32
         obj = [unpack_stream(stream) for _ in range(al)]
-    elif first_byte == 0xDD:
-        al = u32_b_unpack(stream)
-        obj = [unpack_stream(stream) for _ in range(al)]
-    elif first_byte == 0xDE:
-        ml = u16_b_unpack(stream)
-        obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(ml)}
-    elif first_byte == 0xDF:
-        ml = u32_b_unpack(stream)
+    elif first_byte <= 0xDF:  # map
+        if first_byte == 0xDE:
+            ml = u16_b_unpack(stream)  # map16
+        else:
+            ml = u32_b_unpack(stream)  # map32
         obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(ml)}
     else:
         raise ValueError("invalid first byte", first_byte, hex(first_byte))
