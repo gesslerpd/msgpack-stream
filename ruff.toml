@@ -1,0 +1,6 @@
+
+line-length = 100
+fix = true
+
+[lint]
+select = ["I"]

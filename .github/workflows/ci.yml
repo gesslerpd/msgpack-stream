@@ -33,4 +33,4 @@ jobs:
     - uses: astral-sh/setup-uv@v6
     - name: Lint
       run: |
-        uvx ruff check
+        uv run ruff check --no-fix

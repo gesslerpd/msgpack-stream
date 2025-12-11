@@ -71,9 +71,7 @@ def serialize_other(obj, mapped):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--number", type=int, default=25, help="Number of runs")
-    parser.add_argument(
-        "-m", "--mapped", action="store_true", help="Use memory mapping"
-    )
+    parser.add_argument("-m", "--mapped", action="store_true", help="Use memory mapping")
     args = parser.parse_args()
 
     _globals = {
@@ -99,22 +97,10 @@ if __name__ == "__main__":
     print(f"stream: {t_stream:.6f}s total, {t_stream / args.number:.6f}s per call")
     print(f"other: {t_other:.6f}s total, {t_other / args.number:.6f}s per call")
 
-    t_main_s = timeit.timeit(
-        "main(obj, mapped)", number=args.number, globals=_serialize
-    )
-    t_stream_s = timeit.timeit(
-        "stream(obj, mapped)", number=args.number, globals=_serialize
-    )
-    t_other_s = timeit.timeit(
-        "other(obj, mapped)", number=args.number, globals=_serialize
-    )
+    t_main_s = timeit.timeit("main(obj, mapped)", number=args.number, globals=_serialize)
+    t_stream_s = timeit.timeit("stream(obj, mapped)", number=args.number, globals=_serialize)
+    t_other_s = timeit.timeit("other(obj, mapped)", number=args.number, globals=_serialize)
 
-    print(
-        f"main serialize: {t_main_s:.6f}s total, {t_main_s / args.number:.6f}s per call"
-    )
-    print(
-        f"stream serialize: {t_stream_s:.6f}s total, {t_stream_s / args.number:.6f}s per call"
-    )
-    print(
-        f"other serialize: {t_other_s:.6f}s total, {t_other_s / args.number:.6f}s per call"
-    )
+    print(f"main serialize: {t_main_s:.6f}s total, {t_main_s / args.number:.6f}s per call")
+    print(f"stream serialize: {t_stream_s:.6f}s total, {t_stream_s / args.number:.6f}s per call")
+    print(f"other serialize: {t_other_s:.6f}s total, {t_other_s / args.number:.6f}s per call")

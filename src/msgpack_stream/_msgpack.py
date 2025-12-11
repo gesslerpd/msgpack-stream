@@ -174,9 +174,7 @@ def pack_stream(stream, obj):
                 stream.write(b"\xd7\xff" + u64_b_pack(data64))
         else:
             # timestamp96
-            stream.write(
-                b"\xc7\x0c\xff" + u32_b_pack(nanoseconds) + s64_b_pack(seconds)
-            )
+            stream.write(b"\xc7\x0c\xff" + u32_b_pack(nanoseconds) + s64_b_pack(seconds))
     elif _type is ExtType:  # ext
         data = obj.data
         p_code = s8_b_pack(obj.code)
@@ -316,5 +314,6 @@ def unpack_stream(stream):
             ml = u32_b_unpack(stream)  # map32
         obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(ml)}
     else:
+        # unreachable
         raise ValueError("invalid first byte", first_byte, hex(first_byte))
     return obj
