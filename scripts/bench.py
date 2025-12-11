@@ -3,13 +3,13 @@ import os
 # set before importing `msgpack`
 os.environ["MSGPACK_PUREPYTHON"] = "1"
 
-from msgpack_stream import unpack, unpack_stream, pack, pack_stream
-from mmap import mmap, ACCESS_READ, ACCESS_WRITE
 import argparse
 import timeit
+from mmap import ACCESS_READ, ACCESS_WRITE, mmap
 
-from msgpack import unpackb, packb
+from msgpack import packb, unpackb
 
+from msgpack_stream import pack, pack_stream, unpack, unpack_stream
 
 FILE = "scripts/obj.msgpack"
 

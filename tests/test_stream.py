@@ -1,7 +1,6 @@
-from msgpack_stream import pack_stream, unpack_stream
-
 import io
 
+from msgpack_stream import pack_stream, unpack_stream
 
 obj = {
     b"bytearray": b"\x00\x01\x02\x03\x04",

@@ -2,7 +2,7 @@ import struct
 
 
 class Number:
-    __slots__ = ["struct"]
+    __slots__ = ("struct",)
 
     def __init__(self, fmt):
         self.struct = struct.Struct(fmt)
