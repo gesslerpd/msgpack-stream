@@ -202,8 +202,9 @@ def pack_stream(
         if ext_hook is not None:
             result = ext_hook(obj)
             if result is not None:
-                # pack the ext type
-                pack_stream(stream, result)
+                # pack the ext type (doesn't exactly need to be an ExtType)
+                # if the same type is returned it will cause infinite recursion
+                pack_stream(stream, result, float32=float32, ext_hook=ext_hook)
                 return
         raise TypeError("unsupported type", _type, obj)
 
@@ -316,12 +317,12 @@ def unpack_stream(
             else:
                 raise NotImplementedError("unsupported reserved extension", code)
         else:
-            ext = ExtType(code, data)
+            obj = ExtType(code, data)
             if ext_hook is not None:
-                result = ext_hook(ext)
-                obj = result if result is not None else ext
-            else:
-                obj = ext
+                result = ext_hook(obj)
+                if result is not None:
+                    obj = result
+
     elif first_byte == 0xD9:  # str8
         sl = u8_b_unpack(stream)
         obj = stream.read(sl).decode("utf-8")
