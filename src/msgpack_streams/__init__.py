@@ -1,4 +1,4 @@
-"""Pure Python stream based implementation of msgpack"""
+"""Fast stream based implementation of msgpack in pure Python."""
 
 from ._ext import ExtType as ExtType
 from ._io import pack as pack

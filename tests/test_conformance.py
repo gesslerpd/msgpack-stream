@@ -2,7 +2,7 @@ import copy
 
 from msgpack import packb, unpackb
 
-from msgpack_stream import pack, unpack
+from msgpack_streams import pack, unpack
 
 obj = {
     b"bytearray": b"\x00\x01\x02\x03\x04",

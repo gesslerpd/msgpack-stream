@@ -1,6 +1,6 @@
 import io
 
-from msgpack_stream import ExtType, pack_stream, unpack_stream
+from msgpack_streams import ExtType, pack_stream, unpack_stream
 
 
 def test_fixext1():

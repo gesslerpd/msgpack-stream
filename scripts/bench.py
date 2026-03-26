@@ -9,7 +9,7 @@ from mmap import ACCESS_READ, ACCESS_WRITE, mmap
 
 from msgpack import packb, unpackb
 
-from msgpack_stream import pack, pack_stream, unpack, unpack_stream
+from msgpack_streams import pack, pack_stream, unpack, unpack_stream
 
 FILE = "scripts/obj.msgpack"
 
@@ -93,14 +93,24 @@ if __name__ == "__main__":
     t_stream = timeit.timeit("stream(mapped)", number=args.number, globals=_globals)
     t_other = timeit.timeit("other(mapped)", number=args.number, globals=_globals)
 
-    print(f"main: {t_main:.6f}s total, {t_main / args.number:.6f}s per call")
-    print(f"stream: {t_stream:.6f}s total, {t_stream / args.number:.6f}s per call")
-    print(f"other: {t_other:.6f}s total, {t_other / args.number:.6f}s per call")
+    print(
+        f"main: {t_main:.6f}s total, {t_main / args.number:.6f}s per call ({t_other / t_main:.2f}x speedup vs msgpack)"
+    )
+    print(
+        f"stream: {t_stream:.6f}s total, {t_stream / args.number:.6f}s per call ({t_other / t_stream:.2f}x speedup vs msgpack)"
+    )
+    print(f"other (msgpack): {t_other:.6f}s total, {t_other / args.number:.6f}s per call")
 
     t_main_s = timeit.timeit("main(obj, mapped)", number=args.number, globals=_serialize)
     t_stream_s = timeit.timeit("stream(obj, mapped)", number=args.number, globals=_serialize)
     t_other_s = timeit.timeit("other(obj, mapped)", number=args.number, globals=_serialize)
 
-    print(f"main serialize: {t_main_s:.6f}s total, {t_main_s / args.number:.6f}s per call")
-    print(f"stream serialize: {t_stream_s:.6f}s total, {t_stream_s / args.number:.6f}s per call")
-    print(f"other serialize: {t_other_s:.6f}s total, {t_other_s / args.number:.6f}s per call")
+    print(
+        f"main serialize: {t_main_s:.6f}s total, {t_main_s / args.number:.6f}s per call ({t_other_s / t_main_s:.2f}x speedup vs msgpack)"
+    )
+    print(
+        f"stream serialize: {t_stream_s:.6f}s total, {t_stream_s / args.number:.6f}s per call ({t_other_s / t_stream_s:.2f}x speedup vs msgpack)"
+    )
+    print(
+        f"other serialize (msgpack): {t_other_s:.6f}s total, {t_other_s / args.number:.6f}s per call"
+    )

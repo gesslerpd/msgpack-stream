@@ -1,4 +1,4 @@
-"""Tests for error conditions in msgpack-stream to increase coverage."""
+"""Tests for error conditions in msgpack-streams to increase coverage."""
 
 import io
 from datetime import datetime
@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from msgpack_stream import ExtType, pack_stream, unpack_stream
+from msgpack_streams import ExtType, pack_stream, unpack_stream
 
 
 def test_int_too_large_negative():
@@ -32,7 +32,7 @@ def test_str_too_large():
     stream = io.BytesIO()
     test_str = "test"
 
-    with mock.patch("msgpack_stream._msgpack.len", return_value=2**32) as patch:
+    with mock.patch("msgpack_streams._msgpack.len", return_value=2**32) as patch:
         with pytest.raises(ValueError, match="str too large"):
             pack_stream(stream, test_str)
     patch.assert_called_once()
@@ -43,7 +43,7 @@ def test_bin_too_large():
     stream = io.BytesIO()
     test_bytes = b"test"
 
-    with mock.patch("msgpack_stream._msgpack.len", return_value=2**32) as patch:
+    with mock.patch("msgpack_streams._msgpack.len", return_value=2**32) as patch:
         with pytest.raises(ValueError, match="bin too large"):
             pack_stream(stream, test_bytes)
     patch.assert_called_once()
@@ -54,7 +54,7 @@ def test_map_too_large():
     stream = io.BytesIO()
     test_dict = {"key": "value"}
 
-    with mock.patch("msgpack_stream._msgpack.len", return_value=2**32) as patch:
+    with mock.patch("msgpack_streams._msgpack.len", return_value=2**32) as patch:
         with pytest.raises(ValueError, match="map too large"):
             pack_stream(stream, test_dict)
 
@@ -66,7 +66,7 @@ def test_array_too_large():
     stream = io.BytesIO()
     test_list = [1, 2, 3]
 
-    with mock.patch("msgpack_stream._msgpack.len", return_value=2**32) as patch:
+    with mock.patch("msgpack_streams._msgpack.len", return_value=2**32) as patch:
         with pytest.raises(ValueError, match="array too large"):
             pack_stream(stream, test_list)
 
@@ -87,7 +87,7 @@ def test_ext_too_large():
     test_data = b"test"
     test_ext = ExtType(code=42, data=test_data)
 
-    with mock.patch("msgpack_stream._msgpack.len", return_value=2**32) as patch:
+    with mock.patch("msgpack_streams._msgpack.len", return_value=2**32) as patch:
         with pytest.raises(ValueError, match="ext too large"):
             pack_stream(stream, test_ext)
 

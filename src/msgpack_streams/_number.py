@@ -1,17 +1,20 @@
+from __future__ import annotations
+
 import struct
+from typing import BinaryIO
 
 
 class Number:
     __slots__ = ("struct",)
 
-    def __init__(self, fmt):
+    def __init__(self, fmt: str) -> None:
         self.struct = struct.Struct(fmt)
 
-    def pack(self, stream, obj):
+    def pack(self, stream: BinaryIO, obj: int | float) -> None:
         data = self.struct.pack(obj)
         stream.write(data)
 
-    def unpack(self, stream):
+    def unpack(self, stream: BinaryIO) -> int | float:
         data = stream.read(self.struct.size)
         (obj,) = self.struct.unpack(data)
         return obj

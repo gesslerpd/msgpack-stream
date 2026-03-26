@@ -1,16 +1,38 @@
 [project]
-name = "msgpack-stream"
-version = "0.1.0"
-description = "Pure Python stream based implementation of msgpack"
+name = "msgpack-streams"
+version = "1.0.0"
+description = "Fast stream based implementation of msgpack in pure Python"
 readme = "README.md"
+classifiers = [
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+    "Development Status :: 5 - Production/Stable",
+]
+keywords = [
+    "msgpack",
+    "streams",
+    "serialization",
+    "streaming",
+    "datetime",
+    "ext",
+    "fast",
+    "minimal",
+]
 authors = [
     { name = "Peter Gessler", email = "gesslerpd@users.noreply.github.com" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/gesslerpd/msgpack-stream"
+Repository = "https://github.com/gesslerpd/msgpack-stream"
+Documentation = "https://github.com/gesslerpd/msgpack-stream/blob/main/README.md"
+Issues = "https://github.com/gesslerpd/msgpack-stream/issues"
+Changelog = "https://github.com/gesslerpd/msgpack-stream/releases"
+
 [build-system]
-requires = ["uv_build>=0.8.6"]
+requires = ["uv-build>=0.10,<0.11"]
 build-backend = "uv_build"
 
 [dependency-groups]
@@ -19,5 +41,4 @@ dev = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "ruff>=0.12.8",
-    "typing-extensions>=4.15.0",
 ]

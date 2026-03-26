@@ -1,6 +1,9 @@
-import os
+from __future__ import annotations
+
+from collections.abc import Callable
 from datetime import datetime, timezone
 from math import floor
+from typing import BinaryIO
 
 from ._ext import ExtType
 from ._number import (
@@ -26,11 +29,6 @@ s8_b_st = s8_b_t.struct
 s16_b_st = s16_b_t.struct
 s32_b_st = s32_b_t.struct
 s64_b_st = s64_b_t.struct
-f_b_st = f64_b_t.struct
-
-if os.environ.get("MSGPACK_PACK_FLOAT32"):
-    f_b_st = f32_b_t.struct
-
 # u8_b_pack = u8_b_st.pack
 u16_b_pack = u16_b_st.pack
 u32_b_pack = u32_b_st.pack
@@ -39,7 +37,8 @@ s8_b_pack = s8_b_st.pack
 s16_b_pack = s16_b_st.pack
 s32_b_pack = s32_b_st.pack
 s64_b_pack = s64_b_st.pack
-f_b_pack = f_b_st.pack
+f32_b_pack = f32_b_t.struct.pack
+f64_b_pack = f64_b_t.struct.pack
 
 u8_b_unpack = u8_b_t.unpack
 u16_b_unpack = u16_b_t.unpack
@@ -61,7 +60,7 @@ _NS_MASK = 0x3_FF_FF_FF_FF
 _NS_MASK_LEN = 34
 
 
-def _timestamp_to_datetime(seconds, nanoseconds):
+def _timestamp_to_datetime(seconds: float, nanoseconds: int) -> datetime:
     # python only supports microsecond precision
     return datetime.fromtimestamp(seconds + (nanoseconds / 1_000_000_000), timezone.utc)
 
@@ -69,7 +68,13 @@ def _timestamp_to_datetime(seconds, nanoseconds):
 # endregion
 
 
-def pack_stream(stream, obj):
+def pack_stream(
+    stream: BinaryIO,
+    obj: object,
+    *,
+    float32: bool = False,
+    ext_hook: Callable[[object], ExtType | None] | None = None,
+) -> None:
     _type = type(obj)
     if _type is int:  # int
         i = obj
@@ -99,8 +104,11 @@ def pack_stream(stream, obj):
             stream.write(b"\xcf" + u64_b_pack(i))
         else:
             raise ValueError("uint too large", obj)
-    elif _type is float:  # float32 / float64 (depends on MSGPACK_PACK_FLOAT32)
-        stream.write(b"\xcb" + f_b_pack(obj))
+    elif _type is float:  # float32 or float64
+        if float32:
+            stream.write(b"\xca" + f32_b_pack(obj))
+        else:
+            stream.write(b"\xcb" + f64_b_pack(obj))
     elif obj is None:  # nil
         stream.write(b"\xc0")
     elif _type is bool:  # true / false
@@ -141,8 +149,8 @@ def pack_stream(stream, obj):
         else:
             raise ValueError("map too large", obj)
         for k, v in obj.items():
-            pack_stream(stream, k)
-            pack_stream(stream, v)
+            pack_stream(stream, k, float32=float32, ext_hook=ext_hook)
+            pack_stream(stream, v, float32=float32, ext_hook=ext_hook)
     elif _type is list:  # array
         al = len(obj)
         if al <= 0x0F:  # fixarray
@@ -154,7 +162,7 @@ def pack_stream(stream, obj):
         else:
             raise ValueError("array too large", obj)
         for v in obj:
-            pack_stream(stream, v)
+            pack_stream(stream, v, float32=float32, ext_hook=ext_hook)
     elif _type is datetime:  # timestamp
         if obj.tzinfo is None:
             raise ValueError("datetime object must be timezone-aware", obj)
@@ -191,10 +199,20 @@ def pack_stream(stream, obj):
             raise ValueError("ext too large", obj)
         stream.write(data)
     else:
+        if ext_hook is not None:
+            result = ext_hook(obj)
+            if result is not None:
+                # pack the ext type
+                pack_stream(stream, result)
+                return
         raise TypeError("unsupported type", _type, obj)
 
 
-def unpack_stream(stream):
+def unpack_stream(
+    stream: BinaryIO,
+    *,
+    ext_hook: Callable[[ExtType], object | None] | None = None,
+) -> object:
     b = stream.read(1)
     first_byte = b[0]
     if first_byte <= 0x7F:  # positive fixint
@@ -203,10 +221,13 @@ def unpack_stream(stream):
         obj = first_byte - 0x100
     elif first_byte <= 0x8F:  # fixmap
         ml = first_byte & 0x0F
-        obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(ml)}
+        obj = {
+            unpack_stream(stream, ext_hook=ext_hook): unpack_stream(stream, ext_hook=ext_hook)
+            for _ in range(ml)
+        }
     elif first_byte <= 0x9F:  # fixarray
         al = first_byte & 0x0F
-        obj = [unpack_stream(stream) for _ in range(al)]
+        obj = [unpack_stream(stream, ext_hook=ext_hook) for _ in range(al)]
     elif first_byte <= 0xBF:  # fixstr
         sl = first_byte & 0x1F
         obj = stream.read(sl).decode("utf-8")
@@ -249,6 +270,10 @@ def unpack_stream(stream):
                 raise NotImplementedError("unsupported reserved extension", code)
         else:
             obj = ExtType(code, data)
+            if ext_hook is not None:
+                result = ext_hook(obj)
+                if result is not None:
+                    obj = result
     elif first_byte == 0xCA:  # float32
         obj = f32_b_unpack(stream)
     elif first_byte == 0xCB:  # float64
@@ -291,7 +316,12 @@ def unpack_stream(stream):
             else:
                 raise NotImplementedError("unsupported reserved extension", code)
         else:
-            obj = ExtType(code, data)
+            ext = ExtType(code, data)
+            if ext_hook is not None:
+                result = ext_hook(ext)
+                obj = result if result is not None else ext
+            else:
+                obj = ext
     elif first_byte == 0xD9:  # str8
         sl = u8_b_unpack(stream)
         obj = stream.read(sl).decode("utf-8")
@@ -306,13 +336,16 @@ def unpack_stream(stream):
             al = u16_b_unpack(stream)  # array16
         else:
             al = u32_b_unpack(stream)  # array32
-        obj = [unpack_stream(stream) for _ in range(al)]
+        obj = [unpack_stream(stream, ext_hook=ext_hook) for _ in range(al)]
     elif first_byte <= 0xDF:  # map
         if first_byte == 0xDE:
             ml = u16_b_unpack(stream)  # map16
         else:
             ml = u32_b_unpack(stream)  # map32
-        obj = {unpack_stream(stream): unpack_stream(stream) for _ in range(ml)}
+        obj = {
+            unpack_stream(stream, ext_hook=ext_hook): unpack_stream(stream, ext_hook=ext_hook)
+            for _ in range(ml)
+        }
     else:
         # unreachable
         raise ValueError("invalid first byte", first_byte, hex(first_byte))
