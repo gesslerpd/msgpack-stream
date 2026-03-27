@@ -10,8 +10,8 @@ pip install msgpack-streams
 
 ## Benchmarks
 
-Average of 50 iterations each on a 3.77 MB payload, pure Python
-(`MSGPACK_PUREPYTHON=1`).
+Average of 50 iterations each on a 3.77 MB payload, pure Python 3.14.3 (with
+`MSGPACK_PUREPYTHON=1`).
 
 | Implementation                  | Operation | Speedup vs msgpack |
 | ------------------------------- | --------- | ------------------ |
@@ -19,6 +19,14 @@ Average of 50 iterations each on a 3.77 MB payload, pure Python
 | msgpack-streams `unpack_stream` | decode    | 2.70x              |
 | msgpack-streams `pack`          | encode    | 1.84x              |
 | msgpack-streams `pack_stream`   | encode    | 1.69x              |
+
+For PyPy 3.11.15, the pure Python performance is comparable to the `msgpack` C
+extension.
+
+| Implementation           | Operation | Speedup vs msgpack (C) |
+| ------------------------ | --------- | ---------------------- |
+| msgpack-streams `unpack` | decode    | 0.95x                  |
+| msgpack-streams `pack`   | encode    | 1.96x                  |
 
 ## Usage
 
@@ -99,9 +107,11 @@ Use `ext_hook` to pack custom types as extensions, and `ext_hook` to decode them
 back:
 
 ```python
+from dataclasses import dataclass
 from msgpack_streams import ExtType, pack, unpack
 from fmtspec import decode, encode, types  # https://pypi.org/project/fmtspec/
 
+@dataclass
 class Point:
     EXT_CODE = 10
 
@@ -110,23 +120,23 @@ class Point:
         "y": types.u32,
     }
 
-    def __init__(self, x: int, y: int):
-        self.x, self.y = x, y
+    x: int
+    y: int
 
 def unknown_type_hook(obj):
     if isinstance(obj, Point):
         return ExtType(Point.EXT_CODE, encode(obj))
-    return None  # unsupported type → TypeError
+    return None  # unsupported type -> TypeError
 
 def ext_hook(ext):
     if ext.code == Point.EXT_CODE:
         return decode(ext.data, shape=Point)
-    return None  # unknown → keep as ExtType
+    return None  # unknown -> keep as ExtType
 
 pt = Point(1, 2)
 packed = pack(pt, ext_hook=unknown_type_hook)
 result, _ = unpack(packed, ext_hook=ext_hook)
-assert result.x == pt.x and result.y == pt.y
+assert pt == result
 ```
 
 ## API reference

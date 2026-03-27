@@ -1,3 +1,4 @@
+import gc
 import os
 
 # set before importing `msgpack`
@@ -68,6 +69,9 @@ def serialize_other(obj, mapped):
             fd.write(packb(obj))
 
 
+RAW_OBJ = stream(False)
+RAW_DATA = pack(RAW_OBJ)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--number", type=int, default=25, help="Number of runs")
@@ -77,21 +81,35 @@ if __name__ == "__main__":
     _globals = {
         "main": main,
         "stream": stream,
+        "raw": unpack,
         "other": other,
+        "other_raw": unpackb,
+        "data": RAW_DATA,
         "mapped": args.mapped,
     }
 
     _serialize = {
         "main": serialize_main,
         "stream": serialize_stream,
+        "raw": pack,
         "other": serialize_other,
-        "obj": stream(False),
+        "other_raw": packb,
+        "obj": RAW_OBJ,
         "mapped": args.mapped,
     }
 
+    gc.disable()
+
     t_main = timeit.timeit("main(mapped)", number=args.number, globals=_globals)
     t_stream = timeit.timeit("stream(mapped)", number=args.number, globals=_globals)
+    t_raw = timeit.timeit("raw(data)", number=args.number, globals=_globals)
     t_other = timeit.timeit("other(mapped)", number=args.number, globals=_globals)
+    t_other_raw = timeit.timeit(
+        "other_raw(data, strict_map_key=False)", number=args.number, globals=_globals
+    )
+
+    gc.enable()
+    gc.collect()
 
     print(
         f"main: {t_main:.6f}s total, {t_main / args.number:.6f}s per call ({t_other / t_main:.2f}x speedup vs msgpack)"
@@ -99,11 +117,24 @@ if __name__ == "__main__":
     print(
         f"stream: {t_stream:.6f}s total, {t_stream / args.number:.6f}s per call ({t_other / t_stream:.2f}x speedup vs msgpack)"
     )
+    print(
+        f"raw (unpack bytes): {t_raw:.6f}s total, {t_raw / args.number:.6f}s per call ({t_other_raw / t_raw:.2f}x speedup vs msgpack raw)"
+    )
     print(f"other (msgpack): {t_other:.6f}s total, {t_other / args.number:.6f}s per call")
+    print(
+        f"other_raw (unpackb bytes): {t_other_raw:.6f}s total, {t_other_raw / args.number:.6f}s per call"
+    )
+
+    gc.disable()
 
     t_main_s = timeit.timeit("main(obj, mapped)", number=args.number, globals=_serialize)
     t_stream_s = timeit.timeit("stream(obj, mapped)", number=args.number, globals=_serialize)
+    t_raw_s = timeit.timeit("raw(obj)", number=args.number, globals=_serialize)
     t_other_s = timeit.timeit("other(obj, mapped)", number=args.number, globals=_serialize)
+    t_other_raw_s = timeit.timeit("other_raw(obj)", number=args.number, globals=_serialize)
+
+    gc.enable()
+    gc.collect()
 
     print(
         f"main serialize: {t_main_s:.6f}s total, {t_main_s / args.number:.6f}s per call ({t_other_s / t_main_s:.2f}x speedup vs msgpack)"
@@ -112,5 +143,11 @@ if __name__ == "__main__":
         f"stream serialize: {t_stream_s:.6f}s total, {t_stream_s / args.number:.6f}s per call ({t_other_s / t_stream_s:.2f}x speedup vs msgpack)"
     )
     print(
+        f"raw serialize (pack bytes): {t_raw_s:.6f}s total, {t_raw_s / args.number:.6f}s per call ({t_other_raw_s / t_raw_s:.2f}x speedup vs msgpack raw)"
+    )
+    print(
         f"other serialize (msgpack): {t_other_s:.6f}s total, {t_other_s / args.number:.6f}s per call"
+    )
+    print(
+        f"other_raw serialize (packb bytes): {t_other_raw_s:.6f}s total, {t_other_raw_s / args.number:.6f}s per call"
     )
