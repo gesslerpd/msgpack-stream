@@ -77,20 +77,26 @@ def test_container_root_is_not_allowed_at_low_depth():
         pack(_nested_list(1), max_depth=1)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="Test limits accurate on Python 3.12 or higher"
+)
 def test_recursion_limit_pack():
     limit = sys.getrecursionlimit() - get_stack_depth()
     obj = _nested_list(limit)
 
-    # assert obj
-    # pack(obj[0])
+    assert obj
+    pack(obj[0])
 
     with pytest.raises(RecursionError, match="maximum recursion depth exceeded"):
         pack(obj)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="Test limits accurate on Python 3.12 or higher"
+)
 def test_recursion_limit_unpack():
     previous_limit = sys.getrecursionlimit()
-    with recursion_limit(previous_limit + get_stack_depth() + 5):
+    with recursion_limit(previous_limit + get_stack_depth() + 1):
         data = pack(_nested_list(previous_limit))
     with pytest.raises(RecursionError, match="maximum recursion depth exceeded"):
         unpack(data)
