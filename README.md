@@ -139,10 +139,58 @@ result, _ = unpack(packed, ext_hook=ext_hook)
 assert pt == result
 ```
 
+## Depth limits
+
+Use `max_depth` to reject excessively nested payloads during packing or
+unpacking. If the nesting limit is exceeded, a `RecursionError` is raised.
+
+`max_depth` counts the root object as one level, so scalar roots work with
+`max_depth=1`, while nested containers require a higher value. The default value
+is `-1`, which disables the depth limit.
+
+Even with `max_depth` disabled, extremely deep payloads can hit Python's
+built-in recursion limit. This limit can be temporarily raised:
+
+```python
+import sys
+from contextlib import contextmanager
+
+from msgpack_streams import pack, unpack
+
+
+@contextmanager
+def recursion_limit(limit: int):
+    previous_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(limit)
+    try:
+        yield
+    finally:
+        sys.setrecursionlimit(previous_limit)
+
+
+data = [[[{"key": "value"}]]]
+
+with recursion_limit(10_000):
+    packed = pack(data, max_depth=9_000)
+    unpacked, excess_data = unpack(packed, max_depth=9_000)
+
+assert unpacked == data
+assert not excess_data
+```
+
+Use this carefully. Raising Python's recursion limit too far can still fail or
+destabilize the process.
+
 ## API reference
 
 ```python
-def pack(obj: object, *, float32: bool = False, ext_hook: Callable[[object], ExtType | None] | None = None) -> bytes:
+def pack(
+    obj: object,
+    *,
+    float32: bool = False,
+    ext_hook: Callable[[object], ExtType | None] | None = None,
+    max_depth: int = -1,
+) -> bytes:
     ...
 ```
 
@@ -153,10 +201,18 @@ Pass `ext_hook` to handle types that are not natively supported. The callback
 receives the unsupported object and should return an `ExtType` to pack in its
 place. If it returns `None` a `TypeError` is raised as normal.
 
+Pass `max_depth` to limit container nesting during encoding. If the limit is
+exceeded, a `RecursionError` is raised. The default `-1` disables the limit.
+
 ---
 
 ```python
-def unpack(data: bytes, *, ext_hook: Callable[[ExtType], object | None] | None = None) -> tuple[object, bytes]:
+def unpack(
+    data: bytes,
+    *,
+    ext_hook: Callable[[ExtType], object | None] | None = None,
+    max_depth: int = -1,
+) -> tuple[object, bytes]:
     ...
 ```
 
@@ -167,10 +223,20 @@ Pass `ext_hook` to convert `ExtType` values during decoding. The callback
 receives each `ExtType` and should return the decoded object, or `None` to leave
 it as an `ExtType`.
 
+Pass `max_depth` to limit container nesting during decoding. If the limit is
+exceeded, a `RecursionError` is raised. The default `-1` disables the limit.
+
 ---
 
 ```python
-def pack_stream(stream: BinaryIO, obj: object, *, float32: bool = False, ext_hook: Callable[[object], ExtType | None] | None = None) -> None:
+def pack_stream(
+    stream: BinaryIO,
+    obj: object,
+    *,
+    float32: bool = False,
+    ext_hook: Callable[[object], ExtType | None] | None = None,
+    max_depth: int = -1,
+) -> None:
     ...
 ```
 
@@ -181,10 +247,18 @@ Pass `ext_hook` to handle types that are not natively supported. The callback
 receives the unsupported object and should return an `ExtType` to pack in its
 place. If it returns `None` a `TypeError` is raised as normal.
 
+Pass `max_depth` to limit container nesting during encoding. If the limit is
+exceeded, a `RecursionError` is raised. The default `-1` disables the limit.
+
 ---
 
 ```python
-def unpack_stream(stream: BinaryIO, *, ext_hook: Callable[[ExtType], object] | None = None) -> object:
+def unpack_stream(
+    stream: BinaryIO,
+    *,
+    ext_hook: Callable[[ExtType], object] | None = None,
+    max_depth: int = -1,
+) -> object:
     ...
 ```
 
@@ -194,3 +268,6 @@ position past the consumed bytes.
 Pass `ext_hook` to convert `ExtType` values during decoding. The callback
 receives each `ExtType` and should return the decoded object, or `None` to leave
 it as an `ExtType`.
+
+Pass `max_depth` to limit container nesting during decoding. If the limit is
+exceeded, a `RecursionError` is raised. The default `-1` disables the limit.

@@ -74,10 +74,27 @@ def pack_stream(
     *,
     float32: bool = False,
     ext_hook: Callable[[object], ExtType | None] | None = None,
+    max_depth: int = -1,
 ) -> None:
+    """Pack object into stream."""
+    _pack_stream(stream, obj, float32, ext_hook, max_depth)
+
+
+def _pack_stream(
+    stream: BinaryIO,
+    obj: object,
+    float32: bool = False,
+    ext_hook: Callable[[object], ExtType | None] | None = None,
+    max_depth: int = -1,
+    /,  # perf: avoid kwargs overhead in recursive calls
+) -> None:
+    if max_depth == 0:
+        raise RecursionError("max depth exceeded")
+    max_depth -= 1
+
     _type = type(obj)
     if _type is int:  # int
-        i = obj
+        i: int = obj  # type: ignore
         if 0 <= i <= 0x7F:  # positive fixint
             stream.write(_B[i])
         elif -32 <= i < 0:  # negative fixint
@@ -114,7 +131,7 @@ def pack_stream(
     elif _type is bool:  # true / false
         stream.write(b"\xc3" if obj else b"\xc2")
     elif _type is str:  # str
-        s = obj.encode("utf-8")
+        s: bytes = obj.encode("utf-8")  # type: ignore
         sl = len(s)
         if sl <= 0x1F:  # fixstr
             stream.write(_B[0xA0 | sl])
@@ -128,7 +145,7 @@ def pack_stream(
             raise ValueError("str too large", obj)
         stream.write(s)
     elif _type is bytes:  # bin
-        bl = len(obj)
+        bl = len(obj)  # type: ignore
         if bl <= 0xFF:  # bin8
             stream.write(b"\xc4" + _B[bl])
         elif bl <= 0xFF_FF:  # bin16
@@ -137,9 +154,9 @@ def pack_stream(
             stream.write(b"\xc6" + u32_b_pack(bl))
         else:
             raise ValueError("bin too large", obj)
-        stream.write(obj)
+        stream.write(obj)  # type: ignore
     elif _type is dict:  # map
-        ml = len(obj)
+        ml = len(obj)  # type: ignore
         if ml <= 0x0F:  # fixmap
             stream.write(_B[0x80 | ml])
         elif ml <= 0xFF_FF:  # map16
@@ -148,11 +165,11 @@ def pack_stream(
             stream.write(b"\xdf" + u32_b_pack(ml))
         else:
             raise ValueError("map too large", obj)
-        for k, v in obj.items():
-            pack_stream(stream, k, float32=float32, ext_hook=ext_hook)
-            pack_stream(stream, v, float32=float32, ext_hook=ext_hook)
+        for k, v in obj.items():  # type: ignore
+            _pack_stream(stream, k, float32, ext_hook, max_depth)
+            _pack_stream(stream, v, float32, ext_hook, max_depth)
     elif _type is list:  # array
-        al = len(obj)
+        al = len(obj)  # type: ignore
         if al <= 0x0F:  # fixarray
             stream.write(_B[0x90 | al])
         elif al <= 0xFF_FF:  # array16
@@ -161,13 +178,13 @@ def pack_stream(
             stream.write(b"\xdd" + u32_b_pack(al))
         else:
             raise ValueError("array too large", obj)
-        for v in obj:
-            pack_stream(stream, v, float32=float32, ext_hook=ext_hook)
+        for v in obj:  # type: ignore
+            _pack_stream(stream, v, float32, ext_hook, max_depth)
     elif _type is datetime:  # timestamp
-        if obj.tzinfo is None:
+        if obj.tzinfo is None:  # type: ignore
             raise ValueError("datetime object must be timezone-aware", obj)
 
-        seconds_from_epoch = obj.timestamp()
+        seconds_from_epoch = obj.timestamp()  # type: ignore
         # floor rather than int (handles negative timestamps correctly)
         seconds = floor(seconds_from_epoch)
         nanoseconds = int((seconds_from_epoch - seconds) * 1_000_000_000)
@@ -184,8 +201,8 @@ def pack_stream(
             # timestamp96
             stream.write(b"\xc7\x0c\xff" + u32_b_pack(nanoseconds) + s64_b_pack(seconds))
     elif _type is ExtType:  # ext
-        data = obj.data
-        p_code = s8_b_pack(obj.code)
+        data: bytes = obj.data  # type: ignore
+        p_code = s8_b_pack(obj.code)  # type: ignore
         extl = len(data)
         if extl <= 16 and extl in _PO2:  # fixext (0xD4 - 0xD8)
             stream.write(_PO2[extl] + p_code)
@@ -204,7 +221,7 @@ def pack_stream(
             if result is not None:
                 # pack the ext type (doesn't exactly need to be an ExtType)
                 # if the same type is returned it will cause infinite recursion
-                pack_stream(stream, result, float32=float32, ext_hook=ext_hook)
+                _pack_stream(stream, result, float32, ext_hook, max_depth)
                 return
         raise TypeError("unsupported type", _type, obj)
 
@@ -213,7 +230,22 @@ def unpack_stream(
     stream: BinaryIO,
     *,
     ext_hook: Callable[[ExtType], object | None] | None = None,
+    max_depth: int = -1,
 ) -> object:
+    """Unpack object from stream."""
+    return _unpack_stream(stream, ext_hook, max_depth)
+
+
+def _unpack_stream(
+    stream: BinaryIO,
+    ext_hook: Callable[[ExtType], object | None] | None = None,
+    max_depth: int = -1,
+    /,  # perf: avoid kwargs overhead in recursive calls
+) -> object:
+    if max_depth == 0:
+        raise RecursionError("max depth exceeded")
+    max_depth -= 1
+
     b = stream.read(1)
     first_byte = b[0]
     if first_byte <= 0x7F:  # positive fixint
@@ -223,12 +255,12 @@ def unpack_stream(
     elif first_byte <= 0x8F:  # fixmap
         ml = first_byte & 0x0F
         obj = {
-            unpack_stream(stream, ext_hook=ext_hook): unpack_stream(stream, ext_hook=ext_hook)
+            _unpack_stream(stream, ext_hook, max_depth): _unpack_stream(stream, ext_hook, max_depth)
             for _ in range(ml)
         }
     elif first_byte <= 0x9F:  # fixarray
         al = first_byte & 0x0F
-        obj = [unpack_stream(stream, ext_hook=ext_hook) for _ in range(al)]
+        obj = [_unpack_stream(stream, ext_hook, max_depth) for _ in range(al)]
     elif first_byte <= 0xBF:  # fixstr
         sl = first_byte & 0x1F
         obj = stream.read(sl).decode("utf-8")
@@ -337,14 +369,14 @@ def unpack_stream(
             al = u16_b_unpack(stream)  # array16
         else:
             al = u32_b_unpack(stream)  # array32
-        obj = [unpack_stream(stream, ext_hook=ext_hook) for _ in range(al)]
+        obj = [_unpack_stream(stream, ext_hook, max_depth) for _ in range(al)]
     elif first_byte <= 0xDF:  # map
         if first_byte == 0xDE:
             ml = u16_b_unpack(stream)  # map16
         else:
             ml = u32_b_unpack(stream)  # map32
         obj = {
-            unpack_stream(stream, ext_hook=ext_hook): unpack_stream(stream, ext_hook=ext_hook)
+            _unpack_stream(stream, ext_hook, max_depth): _unpack_stream(stream, ext_hook, max_depth)
             for _ in range(ml)
         }
     else:
